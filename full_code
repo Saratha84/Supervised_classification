@@ -1,0 +1,41 @@
+var image =ee.ImageCollection("LANDSAT/LC08/C01/T1_SR")
+.filterDate('2017-01-01','2017-12-31')
+.filterBounds(roi)
+.sort('CLOUD_COVER')
+.first();
+print(image);
+
+var visParamsTrue={bands:['B4','B3','B2'],min:0,max:3000,gamma:1.4};
+Map.addLayer(image,visParamsTrue,"Landsat 2022");
+Map.centerObject(roi,8);
+
+var label="Class";
+var bands=['B1','B2','B3','B4','B5','B6','B7'];
+var input=image.select(bands);
+
+var training=urban.merge(Forest).merge(water).merge(barren);
+print(training);
+
+var trainImage=input.sampleRegions({
+  collection:training,
+  properties:[label],
+  scale:30
+});
+print(trainImage);
+
+var trainingData=trainImage.randomColumn();
+var trainSet=trainingData.filter(ee.Filter.lessThan('random',0.8));
+var testSet=trainingData.filter(ee.Filter.greaterThanOrEquals('random',0.8));
+print(trainSet);
+var classifier=ee.Classifier.smileCart().train(trainSet,label,bands);
+
+var classified=input.classify(classifier);
+
+var landcoverPalette=[
+  '#4870b4',
+  '#8b1212',
+  '#3aa116',
+  '#c2c1b6',
+  ];
+Map.addLayer(classified,{palette:landcoverPalette,min:1,max:4},'classification');
+  
